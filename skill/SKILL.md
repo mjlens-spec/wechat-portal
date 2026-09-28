@@ -5,7 +5,7 @@ description: 读取本机微信的群聊与私聊消息，以及聊天里的图�
 
 # WeChat Portal
 
-统一入口 `~/.local/bin/wechat-portal`，每条命令输出一段 JSON。工具只负责读取和准备材料，理解与判断由当前会话完成。不需要启动 Dashboard、HTTP 服务或定时任务。
+统一入口 `~/.local/bin/wechat-portal`，每条命令输出一段 JSON。Claude Code 用 `/wechat-portal` 调用，Codex 用 `$wechat-portal`；两边用同一份说明。工具只负责读取和准备材料，理解与判断由当前会话完成。不需要启动 Dashboard、HTTP 服务或定时任务。
 
 ## 读取消息
 

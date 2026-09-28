@@ -1,6 +1,6 @@
 # WeChat Portal
 
-本机微信数据的只读入口，供 Claude Code 和 Codex 调用。读取群聊与私聊消息，以及聊天中的图片、视频、文件、合并转发记录和飞书文档链接；每条命令输出一段 JSON，理解与判断由调用它的 AI 会话完成。
+本机微信数据的只读入口，供 Claude Code 和 Codex（命令行与 ChatGPT 桌面端）调用。读取群聊与私聊消息，以及聊天中的图片、视频、文件、合并转发记录和飞书文档链接；每条命令输出一段 JSON，理解与判断由调用它的 AI 会话完成。
 
 不发消息、不改数据、不依赖 Dashboard，也不需要常驻服务或定时任务。
 
@@ -34,12 +34,13 @@ wechat-portal status
 
 - `~/.local/share/wechat-portal/config.json`：账号绑定，权限 0600
 - `~/.local/bin/wechat-portal`：启动器，以隔离模式（`python -I`）运行本仓库的 `run.py`
-- `~/.claude/skills/wechat-portal`、`~/.codex/skills/wechat-portal`：指向本仓库 `skill/` 的软链，两种 AI 共用同一份说明
-- `~/.claude/commands/wechat-portal.md`、`~/.claude/commands/wx-image.md`
+- `~/.claude/skills/wechat-portal`、`~/.codex/skills/wechat-portal`：指向本仓库 `skill/` 的软链，两种 AI 共用同一份说明；`skill/agents/openai.yaml` 提供 Codex 里的显示名、简介和默认提示词
 
-再次运行会保留账号绑定；已有文件内容不同时先备份到 `~/.local/share/wechat-portal/backups/` 再替换。`--agent claude` 或 `--agent codex` 只装一侧。
+调用：Claude Code 里用 `/wechat-portal` 或直接描述需求；Codex 命令行和 ChatGPT 桌面端的 Codex 里用 `$wechat-portal` 或直接描述需求。两边都需要宿主应用有「完全磁盘访问」权限；Codex 在默认工作区沙箱下无法写入 wx-cli 的缓存目录，也无法访问飞书，需使用 `danger-full-access` 或在提示时批准。
 
-从旧版 wechat-work 升级时加 `--migrate-wechat-work`：沿用旧配置里的账号，把旧的 Skill 软链、命令、启动器和运行目录备份后移除。
+再次运行会保留账号绑定；已有文件内容不同时先备份到 `~/.local/share/wechat-portal/backups/` 再替换。旧版本装过的 Claude 命令（`wechat-portal.md`、`wx-image.md`、`wechat-work.md`）与 Skill 重复，每次安装都会备份后移除；同名但内容不指向本工具的命令不动。`--agent claude` 或 `--agent codex` 只装一侧。
+
+从旧版 wechat-work 升级时加 `--migrate-wechat-work`：沿用旧配置里的账号，把旧的 Skill 软链、启动器和运行目录备份后移除。
 
 ## 命令
 
@@ -73,7 +74,7 @@ wechat_portal/
   jobs.py                 多会话材料与清理
   common.py               错误码、脱敏、私有文件读写、子进程
 skill/SKILL.md            Claude 与 Codex 共用的 Skill
-commands/                 Claude 命令模板
+skill/agents/openai.yaml  Codex 显示信息
 vendor/wx-cli/            内置 wx-cli 0.7.4（MIT，见 LICENSE 与 SHA256SUMS）
 tests/                    单元测试，全部为合成数据
 install.py                安装与迁移
@@ -107,7 +108,7 @@ install.py                安装与迁移
 
 - **wx-cli**（`CCworks/wx-cli/`，上游 pandorafuture/wx-cli）：本仓库内置其 0.7.4 发布版二进制，不依赖其源码仓库或 `~/.local/bin/wx-cli`。密钥库和解密缓存仍是 wx-cli 自己的目录（`~/Library/Application Support/wx-cli/`、`~/Library/Caches/wx-cli/`）。
 - **Wechat-Dashborad**：互不依赖。Dashboard 使用 npm 版 `wx`（0.3.0）和它的 daemon，本仓库不调用。
-- **wechat-work**：本项目的前身，2026-09-26 作为 wx-cli fork `feat/standalone-work-reader` 分支中的 `tools/wechat-work` 编写（PR mjlens-spec/wx-cli#1）。2026-09-28 独立成本仓库并改名，在其基础上增加视频、文件、合并转发、链接和飞书文档读取。
+- **wechat-work**：本项目的前身，2026-09-26 作为 wx-cli fork `feat/standalone-work-reader` 分支中的 `tools/wechat-work` 编写。2026-09-28 独立成本仓库并改名，在其基础上增加视频、文件、合并转发、链接和飞书文档读取；原代码已从 PR mjlens-spec/wx-cli#1 撤出，该 PR 只保留 wx-cli 自身的 Rust 修复。
 
 ## 验证
 
@@ -115,6 +116,6 @@ install.py                安装与迁移
 python3 -m unittest discover -s tests -v
 ```
 
-57 项测试，使用合成数据，覆盖引用精确匹配与账号校验、类型错配拦截、字段脱敏、wx-cli 诊断输出不外泄、分页、图片清晰度回退、视频原片归并与歧义拦截、文件副本选择与索引滞后兜底、合并转发展开与实体声明拒绝、链接分类（含仿冒域名）、文档提取回退链、飞书错误码映射与非飞书网址不访问、材料准备的部分失败记录、清理边界，以及安装、迁移和备份。Python 3.9 与 3.13 均通过。
+60 项测试，使用合成数据，覆盖引用精确匹配与账号校验、类型错配拦截、字段脱敏、wx-cli 诊断输出不外泄、分页、图片清晰度回退、视频原片归并与歧义拦截、文件副本选择与索引滞后兜底、合并转发展开与实体声明拒绝、链接分类（含仿冒域名）、文档提取回退链、飞书错误码映射与非飞书网址不访问、材料准备的部分失败记录、清理边界，以及安装、迁移、旧命令收回和备份。Python 3.9 与 3.13 均通过。
 
 2026-09-28 本机实测记录见 `VERIFICATION.md`。真实聊天记录、配置和缓存不得提交到仓库。

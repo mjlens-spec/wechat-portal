@@ -4,7 +4,7 @@
 
 ## 单元测试
 
-57 项，Python 3.9.6 与 3.13 均全部通过。
+60 项，Python 3.9.6 与 3.13 均全部通过。
 
 ## 真实数据
 
@@ -25,7 +25,7 @@
 
 ## 安装与迁移
 
-- `install.py --migrate-wechat-work`：旧 wechat-work 的 2 个 Skill 软链、2 个 Claude 命令、启动器和运行目录全部备份到 `~/.local/share/wechat-portal/backups/20260928-111947-066744/` 后移除；账号绑定沿用旧配置。
+- `install.py --migrate-wechat-work`：旧 wechat-work 的 2 个 Skill 软链、2 个 Claude 命令、启动器和运行目录全部备份后移除；账号绑定沿用旧配置。确认无误后备份已按用户要求清理。
 - wx-cli 密钥库 `keys.toml` 与 `~/.wx-cli/all_keys.json` 的 SHA-256 在迁移前后一致。
 - 经安装后的启动器，从 `/tmp` 目录执行 status、私聊历史、图片、PDF、飞书、prepare、cleanup，全部成功，产物权限 0600。
 

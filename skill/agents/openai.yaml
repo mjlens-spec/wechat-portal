@@ -1,0 +1,8 @@
+interface:
+  display_name: "WeChat Portal"
+  short_description: "只读读取本机微信消息、图片、视频、文件和群里的飞书文档"
+  brand_color: "#1AAD19"
+  default_prompt: "Use $wechat-portal to read my local WeChat chats for the conversation and date range I name, open the images, video frames, files and Feishu docs that matter, and turn them into sourced to-dos, risks or reply drafts."
+
+policy:
+  allow_implicit_invocation: true

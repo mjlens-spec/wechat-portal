@@ -42,8 +42,8 @@ class InstallTests(unittest.TestCase):
             link.parent.mkdir(parents=True, exist_ok=True)
             link.symlink_to(runtime / "skill", target_is_directory=True)
         (self.home / ".claude/commands").mkdir(parents=True, exist_ok=True)
-        (self.home / ".claude/commands/wechat-work.md").write_text("old command")
-        (self.home / ".claude/commands/wx-image.md").write_text("old image command")
+        (self.home / ".claude/commands/wechat-work.md").write_text("读取并使用 `~/.claude/skills/wechat-work/SKILL.md`。")
+        (self.home / ".claude/commands/wx-image.md").write_text("先用 `~/.local/bin/wechat-work images` 取得引用")
         (self.home / ".local/bin").mkdir(parents=True, exist_ok=True)
         (self.home / ".local/bin/wechat-work").write_text("#!/bin/sh\n")
 
@@ -64,14 +64,14 @@ class InstallTests(unittest.TestCase):
             link = self.home / host / "skills/wechat-portal"
             self.assertTrue(link.is_symlink())
             self.assertEqual(link.resolve(), (REPO / "skill").resolve())
-        self.assertIn("wechat-portal", (self.home / ".claude/commands/wx-image.md").read_text())
+        self.assertFalse((self.home / ".claude/commands").exists() and any((self.home / ".claude/commands").iterdir()))
         self.assertFalse(result["keys_modified"])
 
     def test_reinstall_is_idempotent_and_keeps_binding(self):
         self.run_install(account_dir=str(self.account))
         result = self.run_install()
         self.assertIsNone(result["backup_dir"])
-        self.assertEqual(result["legacy_removed"], [])
+        self.assertEqual(result["removed"], [])
 
     def test_migration_backs_up_and_removes_legacy_entry_points(self):
         self.legacy()
@@ -81,12 +81,34 @@ class InstallTests(unittest.TestCase):
             self.assertFalse(os.path.lexists(self.home / path), path)
         backup = Path(result["backup_dir"])
         self.assertTrue((backup / "wechat-work-runtime/skill/SKILL.md").is_file())
-        self.assertEqual((backup / "claude__commands__wx-image.md").read_text(), "old image command")
+        self.assertIn("wechat-work images", (backup / "claude__commands__wx-image.md").read_text())
+        self.assertFalse((self.home / ".claude/commands/wx-image.md").exists())
         self.assertTrue((backup / "claude__skills__wechat-work.symlink").is_file())
         self.assertFalse(any(p.name.startswith(".") for p in backup.iterdir()))
         # Account binding migrated from the legacy config.
         config = json.loads((self.home / ".local/share/wechat-portal/config.json").read_text())
         self.assertEqual(config["account_dir"], str(self.account))
+
+    def test_commands_from_earlier_versions_are_withdrawn(self):
+        commands = self.home / ".claude/commands"
+        commands.mkdir(parents=True)
+        (commands / "wechat-portal.md").write_text("读取并使用 `~/.claude/skills/wechat-portal/SKILL.md`。")
+        result = self.run_install(account_dir=str(self.account))
+        self.assertFalse((commands / "wechat-portal.md").exists())
+        self.assertTrue((Path(result["backup_dir"]) / "claude__commands__wechat-portal.md").is_file())
+
+    def test_unrelated_command_with_same_name_is_left_alone(self):
+        commands = self.home / ".claude/commands"
+        commands.mkdir(parents=True)
+        (commands / "wx-image.md").write_text("my own image helper")
+        result = self.run_install(account_dir=str(self.account))
+        self.assertEqual((commands / "wx-image.md").read_text(), "my own image helper")
+        self.assertEqual(result["removed"], [])
+
+    def test_codex_metadata_ships_with_skill(self):
+        metadata = (REPO / "skill/agents/openai.yaml").read_text()
+        self.assertIn('display_name: "WeChat Portal"', metadata)
+        self.assertIn("$wechat-portal", metadata)
 
     def test_unrelated_skill_is_left_unchanged(self):
         target = self.home / ".claude/skills/wechat-portal"

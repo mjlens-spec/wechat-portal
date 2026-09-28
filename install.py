@@ -5,9 +5,11 @@ Installs (all per-user):
   ~/.local/share/wechat-portal/config.json   account binding (0600)
   ~/.local/bin/wechat-portal                 launcher that runs this repository
   ~/.claude/skills/wechat-portal, ~/.codex/skills/wechat-portal  -> <repo>/skill
-  ~/.claude/commands/wechat-portal.md, ~/.claude/commands/wx-image.md
+    (Claude Code: /wechat-portal; Codex CLI and the ChatGPT app: $wechat-portal)
 
-With --migrate-wechat-work, the former wechat-work entry points are backed up and removed.
+Claude slash commands that earlier versions installed (wechat-portal.md, wx-image.md, wechat-work.md)
+duplicate the skill and are backed up and removed on every install. With --migrate-wechat-work, the
+former wechat-work skill links, launcher and runtime are backed up and removed as well.
 """
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ import datetime
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import sys
@@ -23,6 +26,8 @@ import tempfile
 
 REPO = Path(__file__).resolve().parent
 LEGACY_RUNTIME = ".local/share/wechat-work"
+COMMANDS = ("wechat-portal.md", "wx-image.md", "wechat-work.md")
+MARKERS = re.compile(r"skills/wechat-(portal|work)/SKILL\.md|\.local/bin/wechat-(portal|work)")
 
 
 def regular(path):
@@ -76,12 +81,13 @@ def install(home, repo=REPO, binary=None, account_dir=None, agent="both", migrat
     hosts = (".codex", ".claude") if agent == "both" else ("." + agent,)
     skill_source = repo / "skill"
     files = [config_path, home / ".local/bin/wechat-portal"]
-    if ".claude" in hosts:
-        files += [home / ".claude/commands/wechat-portal.md", home / ".claude/commands/wx-image.md"]
     targets = [home / host / "skills/wechat-portal" for host in hosts]
 
     legacy_links = [home / host / "skills/wechat-work" for host in (".codex", ".claude")]
-    legacy_files = [home / ".claude/commands/wechat-work.md", home / ".local/bin/wechat-work"]
+    legacy_files = [home / ".local/bin/wechat-work"]
+    # Commands we installed before; they only point at the skill. Unrelated commands are left alone.
+    managed_commands = [p for p in (home / ".claude/commands" / n for n in COMMANDS)
+                        if p.is_file() and not p.is_symlink() and MARKERS.search(p.read_text(errors="ignore"))]
     legacy_runtime = home / LEGACY_RUNTIME
 
     # ---- preflight: nothing changes until every destination checks out ----
@@ -142,11 +148,11 @@ def install(home, repo=REPO, binary=None, account_dir=None, agent="both", migrat
     for target in targets:
         if not target.is_symlink():
             target.symlink_to(skill_source, target_is_directory=True)
-    if ".claude" in hosts:
-        for name in ("wechat-portal.md", "wx-image.md"):
-            put(home / ".claude/commands" / name, (repo / "commands" / name).read_bytes())
-
     removed = []
+    for path in managed_commands:
+        backup(path)
+        path.unlink()
+        removed.append(str(path))
     if migrate:
         for link in legacy_links:
             if link.is_symlink():
@@ -164,7 +170,7 @@ def install(home, repo=REPO, binary=None, account_dir=None, agent="both", migrat
             removed.append(str(legacy_runtime))
 
     return {"installed": True, "command": str(home / ".local/bin/wechat-portal"), "repository": str(repo),
-            "backend": str(binary), "agents": list(hosts), "legacy_removed": removed,
+            "backend": str(binary), "agents": list(hosts), "removed": removed,
             "backup_dir": str(backup_root) if backup_root.exists() else None, "keys_modified": False}
 
 
@@ -174,7 +180,7 @@ def main(argv=None):
     parser.add_argument("--account-dir", help="WeChat account directory containing db_storage; required on first install")
     parser.add_argument("--agent", choices=("codex", "claude", "both"), default="both")
     parser.add_argument("--migrate-wechat-work", action="store_true",
-                        help="Back up and remove the former wechat-work skill, commands, launcher and runtime")
+                        help="Back up and remove the former wechat-work skill links, launcher and runtime")
     args = parser.parse_args(argv)
     try:
         result = install(Path.home(), REPO, args.binary, args.account_dir, args.agent, args.migrate_wechat_work)
