@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+# Local state never belongs in the repository.
+config.json
+*.local.json
+/out/
